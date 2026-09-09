@@ -1,0 +1,92 @@
+# Was a bare Pod. A Pod is never rescheduled: if the node it lands on is drained
+# or fails, the provider connector loses its database permanently and needs manual
+# recreation. A Deployment restores it automatically.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: provider-connector-db
+  labels:
+    app: provider-connector-db-pod
+spec:
+  replicas: 1
+  # Recreate, not RollingUpdate: the data volume is ReadWriteOnce, so a second
+  # pod cannot mount it while the first still holds it. A rolling update would
+  # deadlock with the new pod stuck in ContainerCreating.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: provider-connector-db-pod
+  template:
+    metadata:
+      # Label kept exactly as the original Pod had it so the existing Service
+      # selector still matches without being touched.
+      labels:
+        app: provider-connector-db-pod
+    spec:
+      containers:
+        - name: postgres
+          image: {{ include "adv.image" .Values.postgres.image }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_DB
+              value: {{ .Values.postgres.database | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.postgres.user | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-provider-secret
+                  key: POSTGRES_PASSWORD
+            # Real PersistentVolumes often hand you a mount point that already
+            # contains lost+found, and initdb refuses a non-empty directory.
+            # Keeping the cluster in a subdirectory avoids that failure, which
+            # does not show up on kind's local-path provisioner.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - "pg_isready -U {{ .Values.postgres.user }} --dbname={{ .Values.postgres.database }}"
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - "pg_isready -U {{ .Values.postgres.user }} --dbname={{ .Values.postgres.database }}"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 6
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          {{- with .Values.postgres.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        - name: postgres-data
+        {{- if .Values.postgres.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: postgres-provider-pvc
+        {{- else }}
+          emptyDir: {}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

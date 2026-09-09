@@ -1,0 +1,255 @@
+# ADV IDS connectors — values for a real Kubernetes cluster.
+#
+# Scoped for an INTERNAL / STAGING deployment: both connectors live in your
+# cluster and only talk to each other, so sovity-mock-iam is retained. Joining a
+# real data space needs more than this file — see "Not covered here" at the end.
+#
+# Every CHANGEME must be set before this will deploy. They are values that
+# cannot be guessed from a laptop setup because they depend on your cluster.
+# Find them with:
+#   kubectl get ingressclass
+#   kubectl get storageclass
+
+appName: sovity-ui
+
+# ---------------------------------------------------------------------------
+# Images
+# ---------------------------------------------------------------------------
+# ghcr.io/sovity/* are public, so these work unchanged if the cluster has egress
+# to ghcr.io. If it does not, mirror them internally and change the repositories.
+image:
+  connectorui:
+    repository: 'ghcr.io/sovity/edc-ce-ui'
+    tag: '16.4.1'
+    # Immutable; comment out to follow the tag.
+    digest: sha256:151fc3e15730fa756ce832ca754256822332fe3600c0a9eafcb30be8cfcbb880
+  providerui:
+    repository: 'ghcr.io/sovity/edc-ce-ui'
+    tag: '16.4.1'
+    # Immutable; comment out to follow the tag.
+    digest: sha256:151fc3e15730fa756ce832ca754256822332fe3600c0a9eafcb30be8cfcbb880
+  connector:
+    consumer:
+      repository: 'ghcr.io/sovity/edc-ce'
+      tag: '16.4.1'
+      # Immutable; comment out to follow the tag.
+      digest: sha256:e81025e61960fdd161b5ac30282938f1d2c535fbfeae8de779893349feef02e7
+    provider:
+      repository: 'ghcr.io/sovity/edc-ce'
+      tag: '16.4.1'
+      # Immutable; comment out to follow the tag.
+      digest: sha256:e81025e61960fdd161b5ac30282938f1d2c535fbfeae8de779893349feef02e7
+  # The initContainer that blocks until the database accepts connections.
+  waitForDb:
+    repository: 'busybox'
+    tag: '1.36'
+    # Immutable; comment out to follow the tag.
+    digest: sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662
+  # The tags are pinned, so re-pulling on every pod start buys nothing.
+  # The original chart used Always.
+  pullPolicy: IfNotPresent
+
+# Name of the image pull secret every Deployment references. Leave
+# ghcrDockerConfigJson empty for public images: the chart then renders a valid
+# empty {"auths":{}} and the kubelet pulls anonymously.
+imagePullSecret: ghcr-secret
+# For a private registry, either set the base64 docker config here or pre-create
+# the Secret out of band and leave this empty.
+ghcrDockerConfigJson: ''
+
+debug:
+  # Emits REMOTE_DEBUG_BIND and its secret key. A JVM debug port has no place on
+  # a shared cluster, so this is off.
+  remoteDebug: false
+
+# ---------------------------------------------------------------------------
+# Connector configuration
+# ---------------------------------------------------------------------------
+secrets:
+  connector:
+    # CHANGEME: 'SomeOtherApiKey' is sovity's public demo key. Anyone who knows
+    # it has full control of the connector's management API.
+    nextPublicManagementApiKey: CHANGEME-management-api-key
+    edcApiAuthKey: CHANGEME-management-api-key
+    nextPublicManagementApiUrl: '/api/management'
+    sovityDeploymentKind: 'control-plane-with-integrated-data-plane'
+    sovityFqdnInternal: 'sovity-ui-consumer-service'
+    sovityJdbcUrl: 'jdbc:postgresql://consumer-connector-db:5432/db-name'
+    sovityJdbcUser: 'db-user'
+    # CHANGEME: must equal postgres.auth.password below.
+    sovityJdbcPassword: CHANGEME-db-password
+    sovityManagementApiIamKind: 'management-iam-api-key'
+    sovityEdcTitle: 'ADV Consumer'
+    sovityEdcDescription: 'AgriDataValue consumer connector'
+    sovityEdcMaintainerUrl: 'https://agridatavalue.eu/'
+    sovityEdcMaintainerName: 'AgriDataValue'
+    sovityEdcCuratorName: 'AgriDataValue'
+    sovityEdcCuratorUrl: 'https://agridatavalue.eu/'
+    remoteDebugBind: '0.0.0.0:5006'
+    sovityEdcUiPreconfiguredCounterparties: 'http://sovity-ui-provider-service:11003/api/v1/dsp?participantId=provider'
+    # In-cluster addresses: correct while both connectors are in one cluster.
+    # An external counterparty could not reach these.
+    sovityFqdnPublic: 'sovity-ui-consumer-service:11005'
+    edcDspCallbackAddress: 'http://sovity-ui-consumer-service:11003/api/v1/dsp'
+    sovityDataspaceKind: 'sovity-mock-iam'
+    edcParticipantId: 'consumer'
+    sovityHttpProtocol: 'http://'
+    # printConfig dumps the resolved configuration, credentials included.
+    sovityPrintConfig: 'false'
+    # DEBUG is very verbose and puts request detail in the logs.
+    sovityLoggingLevel: 'INFO'
+
+  provider:
+    nextPublicManagementApiKey: CHANGEME-management-api-key
+    edcApiAuthKey: CHANGEME-management-api-key
+    nextPublicManagementApiUrl: '/api/management'
+    sovityDeploymentKind: 'control-plane-with-integrated-data-plane'
+    sovityFqdnInternal: 'sovity-ui-provider-service'
+    sovityJdbcUrl: 'jdbc:postgresql://provider-connector-db:5432/db-name'
+    sovityJdbcUser: 'db-user'
+    sovityJdbcPassword: CHANGEME-db-password
+    sovityManagementApiIamKind: 'management-iam-api-key'
+    sovityEdcTitle: 'ADV Provider'
+    sovityEdcDescription: 'AgriDataValue provider connector'
+    sovityEdcMaintainerUrl: 'https://agridatavalue.eu/'
+    sovityEdcMaintainerName: 'AgriDataValue'
+    sovityEdcCuratorName: 'AgriDataValue'
+    sovityEdcCuratorUrl: 'https://agridatavalue.eu/'
+    remoteDebugBind: '0.0.0.0:5006'
+    sovityEdcUiPreconfiguredCounterparties: 'http://sovity-ui-consumer-service:11003/api/v1/dsp?participantId=consumer'
+    sovityFqdnPublic: 'sovity-ui-provider-service:11005'
+    edcDspCallbackAddress: 'http://sovity-ui-provider-service:11003/api/v1/dsp'
+    sovityDataspaceKind: 'sovity-mock-iam'
+    edcParticipantId: 'provider'
+    sovityHttpProtocol: 'http://'
+    sovityPrintConfig: 'false'
+    sovityLoggingLevel: 'INFO'
+
+# ---------------------------------------------------------------------------
+# Services — ClusterIP only; the ingress is the entry point
+# ---------------------------------------------------------------------------
+service:
+  # Connector ports. The ingress routes /api to httpPort, so these must stay in
+  # step with each other.
+  connector:
+    httpPort: 11002      # management API
+    dspPort: 11003       # Dataspace Protocol
+    controlPort: 11004
+    publicPort: 11005
+    proxyPort: 11006
+  consumerUi:
+    type: ClusterIP
+    port: 11000
+    nodePort: ''
+  providerUi:
+    type: ClusterIP
+    port: 11000
+    nodePort: ''
+
+# ---------------------------------------------------------------------------
+# Databases
+# ---------------------------------------------------------------------------
+postgres:
+  image:
+    repository: 'docker.io/postgres'
+    tag: '17-alpine'
+    digest: sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73
+  database: 'db-name'
+  user: 'db-user'
+  auth:
+    # CHANGEME: must equal secrets.<side>.sovityJdbcPassword above, or the
+    # connectors cannot log in and sit in CrashLoopBackOff.
+    password: CHANGEME-db-password
+  persistence:
+    enabled: true
+    # Grows with assets, agreements and transfer records.
+    size: 10Gi
+    accessMode: ReadWriteOnce
+    # CHANGEME, or leave empty to accept the cluster default.
+    storageClass: CHANGEME-storageclass
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+
+# ---------------------------------------------------------------------------
+# Ingress
+# ---------------------------------------------------------------------------
+ingress:
+  # CHANGEME: may not be nginx — traefik, haproxy and cloud controllers are all
+  # common. Without a class no controller claims the Ingress and it silently
+  # does nothing.
+  className: CHANGEME-ingressclass
+  consumerHost: CHANGEME-consumer.example.internal
+  providerHost: CHANGEME-provider.example.internal
+  annotations: {}
+    # cert-manager populates the TLS secrets below from this:
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+    # Transferred payloads can be large and nginx defaults to a 1m body limit:
+    # nginx.ingress.kubernetes.io/proxy-body-size: "0"
+  tls:
+    enabled: true
+    consumerSecretName: CHANGEME-consumer-tls
+    providerSecretName: CHANGEME-provider-tls
+
+# ---------------------------------------------------------------------------
+# Resources — starting points; tune from real usage
+# ---------------------------------------------------------------------------
+resources:
+  connector:
+    requests:
+      cpu: 250m
+      memory: 1Gi
+    limits:
+      memory: 2Gi
+  ui:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+
+# ---------------------------------------------------------------------------
+# Branding
+# ---------------------------------------------------------------------------
+# The sovity UI has no whitelabel setting, but it serves its logo and favicon as
+# plain static files from /app/public, so those can be replaced by mounting over
+# them — no image rebuild, nothing to redo after an upgrade.
+#
+# What this CANNOT change, because it is compiled into the Next.js bundles:
+#   * the "Get Managed EDC / Connector-as-a-Service" card on the dashboard
+#   * the "(c) <year> sovity GmbH" footer, which is hardcoded JSX present in both
+#     the server and client chunks
+# Changing those means patching minified chunks or forking sovity/edc-ce. Note
+# also that removing another party's copyright notice from AGPL software is a
+# licensing question, not just a technical one.
+branding:
+  enabled: true
+  # Path relative to the chart directory. Helm reads it at template time, so the
+  # file has to live inside the chart to travel with it.
+  logoFile: files/adv-logo-fitted.svg
+  # The supplied ADV mark is 1.41:1 while sovity's wordmark is 3.64:1, so it will
+  # render narrower in a header sized for a wide logo. Reuses the same file for
+  # the favicon; set false to keep sovity's.
+  replaceFavicon: false
+
+nodeSelector: {}
+tolerations: []
+
+# ---------------------------------------------------------------------------
+# Not covered here
+# ---------------------------------------------------------------------------
+# 1. SECRETS. Real credentials do not belong in a values file in git. Use
+#    sealed-secrets, external-secrets or a vault, or create the Secrets out of
+#    band. The CHANGEME markers make the requirement visible; they are not an
+#    invitation to commit real values.
+#
+# 2. IDENTITY. sovityDataspaceKind stays 'sovity-mock-iam', which is right for
+#    connectors that only talk to each other. A real data space needs real
+#    participant credentials, and sovityFqdnPublic / edcDspCallbackAddress must
+#    become externally reachable URLs — counterparties call them from outside.
+#
+# 3. POSTGRES is one instance on a ReadWriteOnce volume with no backups. Fine for
+#    staging; use a managed database or add backups for anything you care about.

@@ -1,0 +1,15 @@
+# Force LF in the repository and in every working copy.
+#
+# Without this, a checkout on Windows with core.autocrlf=true rewrites the shell
+# scripts with CRLF line endings. They then fail on Linux with
+# "bad interpreter: /bin/bash^M: no such file or directory", and the same happens
+# to any YAML passed through a tool that is strict about it. The scripts run on
+# the cluster side, so LF is the only correct answer for all of it.
+* text=auto eol=lf
+
+*.sh   text eol=lf
+*.yaml text eol=lf
+*.yml  text eol=lf
+*.tpl  text eol=lf
+*.md   text eol=lf
+*.svg  text eol=lf

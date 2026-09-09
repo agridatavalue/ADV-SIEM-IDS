@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.appName  }}-consumer-service
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Values.appName}}-consumer-connector
+  # Ports come from values so the ingress and this Service cannot drift apart —
+  # the ingress routes /api to service.connector.httpPort.
+  ports:
+    - name: http
+      port: {{ .Values.service.connector.httpPort }}
+      targetPort: {{ .Values.service.connector.httpPort }}
+      protocol: TCP
+    - name: dsp
+      port: {{ .Values.service.connector.dspPort }}
+      targetPort: {{ .Values.service.connector.dspPort }}
+      protocol: TCP
+    - name: control
+      port: {{ .Values.service.connector.controlPort }}
+      targetPort: {{ .Values.service.connector.controlPort }}
+      protocol: TCP
+    - name: public
+      port: {{ .Values.service.connector.publicPort }}
+      targetPort: {{ .Values.service.connector.publicPort }}
+      protocol: TCP
+    - name: proxy
+      port: {{ .Values.service.connector.proxyPort }}
+      targetPort: {{ .Values.service.connector.proxyPort }}
+      protocol: TCP

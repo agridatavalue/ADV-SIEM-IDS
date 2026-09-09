@@ -1,0 +1,41 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: consumer-ingress
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  # Without an ingressClassName (and with no default IngressClass in the
+  # cluster) no controller claims this Ingress and it silently does nothing.
+  ingressClassName: {{ required "ingress.className is required" .Values.ingress.className }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ required "ingress.consumerHost is required" .Values.ingress.consumerHost | quote }}
+      secretName: {{ required "ingress.tls.consumerSecretName is required when tls.enabled" .Values.ingress.tls.consumerSecretName }}
+  {{- end }}
+  rules:
+  - host: {{ required "ingress.consumerHost is required" .Values.ingress.consumerHost }}
+    http:
+      paths:
+      # /api must come first: with pathType Prefix the more specific path has to
+      # be matched before the catch-all "/", or every API call reaches the UI.
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Values.appName  }}-consumer-service
+            port:
+              number: {{ .Values.service.connector.httpPort }}
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Values.appName  }}-consumer-connector-ui-service
+            # The Service port, not the container port. The UI container listens
+            # on 8080 but this Service publishes 11000 (targetPort 8080), and an
+            # Ingress backend must name a port the Service actually exposes.
+            port:
+              number: {{ .Values.service.consumerUi.port }}

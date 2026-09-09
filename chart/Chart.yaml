@@ -1,0 +1,11 @@
+apiVersion: v2
+appVersion: "0.1.0"
+description: A Helm chart implementation for Sovity ids connectors
+name: sovity-ui-connector
+maintainers:
+  - name: AgriDataValue
+    url: https://agridatavalue.eu/
+sources:
+  - https://agridatavalue.eu/
+type: application
+version: 0.1.0

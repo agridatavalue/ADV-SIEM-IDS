@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.appName}}-provider-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.appName}}-provider-ui
+  template:
+    metadata:
+      {{- if .Values.branding.enabled }}
+      annotations:
+        checksum/branding: {{ .Files.Get .Values.branding.logoFile | sha256sum }}
+      {{- end }}
+      labels:
+        app: {{ .Values.appName}}-provider-ui
+    spec:
+      imagePullSecrets:
+        - name: {{ .Values.imagePullSecret }}
+      containers:
+        - name: {{ .Values.appName }}-provider-ui
+          image: {{ include "adv.image" .Values.image.providerui }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.resources.ui }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+              name: http
+          env:
+            - name: NEXT_PUBLIC_MANAGEMENT_API_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.appName }}-provider-secret
+                  key: NEXT_PUBLIC_MANAGEMENT_API_URL
+
+            - name: NEXT_PUBLIC_MANAGEMENT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.appName }}-provider-secret
+                  key: NEXT_PUBLIC_MANAGEMENT_API_KEY
+          {{- if .Values.branding.enabled }}
+          # subPath replaces just this one file and leaves the rest of
+          # /app/public intact. Mounting the whole directory would hide
+          # everything else the UI serves from there.
+          volumeMounts:
+            - name: branding
+              mountPath: /app/public/sovity_logo.svg
+              subPath: logo.svg
+              readOnly: true
+            {{- if .Values.branding.replaceFavicon }}
+            - name: branding
+              mountPath: /app/public/favicon.svg
+              subPath: logo.svg
+              readOnly: true
+            {{- end }}
+          {{- end }}
+      {{- if .Values.branding.enabled }}
+      volumes:
+        - name: branding
+          configMap:
+            name: {{ .Values.appName }}-branding
+      {{- end }}

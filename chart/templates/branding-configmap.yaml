@@ -1,0 +1,25 @@
+{{- if .Values.branding.enabled }}
+# ADV branding for the connector UIs.
+#
+# The sovity UI has no whitelabel or branding configuration — the only settings it
+# reads are NEXT_PUBLIC_BUILD_VERSION/BUILD_DATE/DEVTOOLS_ENABLED/
+# MANAGEMENT_API_KEY/MANAGEMENT_API_URL/USE_FAKE_BACKEND. What it does do is serve
+# its logo and favicon as ordinary static files from /app/public, referenced by
+# path in the page (`src="/sovity_logo.svg"`). Those files can therefore be
+# replaced by mounting over them, with no image rebuild and nothing to redo on an
+# upgrade.
+#
+# Everything else that is sovity-branded (the "Get Managed EDC" card, the
+# "© <year> sovity GmbH" footer) is compiled into the Next.js chunks and cannot be
+# reached this way. The footer in particular is hardcoded JSX present in BOTH
+# server and client bundles, so changing it means patching minified chunks or
+# forking the UI — see the README.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.appName }}-branding
+data:
+  # Helm reads this from the chart directory, so the file travels with the chart.
+  logo.svg: |
+{{ .Files.Get .Values.branding.logoFile | indent 4 }}
+{{- end }}

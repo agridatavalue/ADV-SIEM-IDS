@@ -1,0 +1,204 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.appName}}-provider-connector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.appName}}-provider-connector
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.appName}}-provider-connector
+    spec:
+      initContainers:
+      - name: wait-for-db
+        image: {{ include "adv.image" .Values.image.waitForDb }}
+        command:
+          - sh
+          - -c
+          - |
+            echo "Waiting for DB to be ready..."
+            TIMEOUT=60
+            COUNT=0
+            until nc -z provider-connector-db 5432; do
+              COUNT=$((COUNT+2))
+              if [ $COUNT -ge $TIMEOUT ]; then
+                echo "Timeout reached waiting for DB"
+                exit 1
+              fi
+              echo "DB not ready yet, sleeping 2s..."
+              sleep 2
+            done
+            echo "DB is ready!"
+        resources:
+          requests:
+            cpu: 10m
+            memory: 16Mi
+      imagePullSecrets:
+        - name: {{ .Values.imagePullSecret }}
+      containers:
+        - name: {{ .Values.appName }}-provider-connector
+          image: {{ include "adv.image" .Values.image.connector.provider }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.resources.connector }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - containerPort: {{ .Values.service.connector.httpPort }}
+              protocol: TCP
+              name: http
+            - containerPort: {{ .Values.service.connector.dspPort }}
+              protocol: TCP
+              name: dsp
+            - containerPort: {{ .Values.service.connector.publicPort }}
+              protocol: TCP
+              name: public
+            - containerPort: {{ .Values.service.connector.proxyPort }}
+              protocol: TCP
+              name: proxy
+          env:
+            - name: sovity.deployment.kind
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.appName }}-provider-secret
+                  key: sovity.deployment.kind
+
+            - name: sovity.edc.fqdn.public
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.appName }}-provider-secret
+                  key: sovity.edc.fqdn.public
+
+            - name: sovity.edc.fqdn.internal
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.appName }}-provider-secret
+                  key: sovity.edc.fqdn.internal
+
+            - name: sovity.jdbc.url
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.appName }}-provider-secret
+                  key: sovity.jdbc.url
+
+            - name: sovity.jdbc.user
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.appName }}-provider-secret
+                  key: sovity.jdbc.user
+
+            - name: sovity.jdbc.password
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.appName }}-provider-secret
+                  key: sovity.jdbc.password
+
+            - name: sovity.management.api.iam.kind
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.appName }}-provider-secret
+                  key: sovity.management.api.iam.kind
+
+            - name: edc.api.auth.key
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.appName }}-provider-secret
+                  key: edc.api.auth.key
+
+            - name: sovity.edc.title
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.appName }}-provider-secret
+                  key: sovity.edc.title
+
+            - name: sovity.edc.description
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.appName }}-provider-secret
+                  key: sovity.edc.description
+
+            - name: sovity.edc.maintainer.name
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.appName }}-provider-secret
+                  key: sovity.edc.maintainer.name
+
+            - name: sovity.edc.maintainer.url
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.appName }}-provider-secret
+                  key: sovity.edc.maintainer.url
+
+            - name: sovity.edc.curator.name
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.appName }}-provider-secret
+                  key: sovity.edc.curator.name
+
+            - name: sovity.edc.curator.url
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.appName }}-provider-secret
+                  key: sovity.edc.curator.url
+
+            {{- if .Values.debug.remoteDebug }}
+            # Opens a JVM debug port. Gated off by default: the matching
+            # secret key is only rendered when this is enabled, so leaving
+            # the env var here unconditionally would break the pod.
+            - name: REMOTE_DEBUG_BIND
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.appName }}-provider-secret
+                  key: REMOTE_DEBUG_BIND
+            {{- end }}
+
+            - name: sovity.edc.ui.preconfigured.counterparties
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.appName }}-provider-secret
+                  key: sovity.edc.ui.preconfigured.counterparties
+
+            - name: sovity.dataspace.kind
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.appName }}-provider-secret
+                  key: sovity.dataspace.kind
+
+            - name: edc.participant.id
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.appName }}-provider-secret
+                  key: edc.participant.id
+
+            - name: sovity.http.protocol
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.appName }}-provider-secret
+                  key: sovity.http.protocol
+
+            - name: sovity.print.config
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.appName }}-provider-secret
+                  key: sovity.print.config
+
+            - name: sovity.logging.level
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.appName }}-provider-secret
+                  key: sovity.logging.level
+
+            - name: edc.dsp.callback.address
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.appName }}-provider-secret
+                  key: edc.dsp.callback.address
+
+
+
+
+
+

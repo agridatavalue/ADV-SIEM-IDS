@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.appName  }}-consumer-connector-ui-service
+spec:
+  type: {{ .Values.service.consumerUi.type }}
+  selector:
+    app: {{ .Values.appName  }}-consumer-connector-ui
+  ports:
+    - port: {{ .Values.service.consumerUi.port }}
+      targetPort: 8080
+      protocol: TCP
+      name: http
+      {{- if and (eq .Values.service.consumerUi.type "NodePort") .Values.service.consumerUi.nodePort }}
+      nodePort: {{ .Values.service.consumerUi.nodePort }}
+      {{- end }}

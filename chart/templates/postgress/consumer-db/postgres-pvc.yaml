@@ -1,0 +1,23 @@
+{{- if .Values.postgres.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  annotations:
+    # Keep the database when the release is uninstalled. Losing a connector's
+    # assets, agreements and transfer history should be a deliberate act, not a
+    # side effect of `helm uninstall`. Delete the PVC by hand if you mean it.
+    helm.sh/resource-policy: keep
+spec:
+  # These were hardcoded (5Gi, ReadWriteOnce) while values.yaml carried
+  # postgres.persistence.size and accessMode that nothing read — so setting them
+  # had no effect. Now they do.
+  accessModes:
+    - {{ .Values.postgres.persistence.accessMode }}
+  {{- if .Values.postgres.persistence.storageClass }}
+  storageClassName: {{ .Values.postgres.persistence.storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.postgres.persistence.size | quote }}
+{{- end }}

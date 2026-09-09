@@ -146,57 +146,6 @@ branding:
   replaceFavicon: false
 ```
 
-A ConfigMap built with `.Files.Get` is mounted with `subPath` over
-`/app/public/sovity_logo.svg`. `subPath` matters: mounting the directory would hide
-everything else the UI serves from there. A `checksum/branding` annotation on the
-pod template forces a rollout when the file changes, because **subPath mounts do not
-pick up later ConfigMap updates** — without it, editing the logo appears to do
-nothing.
-
-No image rebuild, and nothing to redo after a version upgrade. Point `logoFile` at
-your own SVG in `chart/files/`, or set `branding.enabled: false` to keep sovity's.
-
-Note the page hardcodes `width="115" height="32"` on the img — a 3.59:1 slot built
-for sovity's wordmark. A logo is scaled to fit that box preserving its own ratio, so
-**height is the binding constraint** and a squarish mark will not use the full width.
-
-### What cannot be changed this way
-
-Compiled into the Next.js bundles, not reachable by mounting files:
-
-| | Where |
-| --- | --- |
-| "Get Managed EDC / Connector-as-a-Service" card | one i18n string, server chunk only |
-| `(c) <year> sovity GmbH` footer | hardcoded JSX, **server and client** chunks |
-
-The footer being in both means patching one chunk leaves the UI flipping back as
-React hydrates. Changing either means patching minified chunks or forking
-`sovity/edc-ce`. Note also that removing another party's copyright notice from AGPL
-software is a licensing question, not only a technical one — adding your own
-"deployed by" line alongside it is a different and safer thing.
-
----
-
-## Limitations
-
-Be clear about what this is scoped for before putting it in front of anything that
-matters.
-
-- **Identity is mocked.** `sovityDataspaceKind` stays `sovity-mock-iam`, which is
-  correct while both connectors are yours and only talk to each other. Joining a
-  real data space needs real participant credentials, and `sovityFqdnPublic` /
-  `edcDspCallbackAddress` must become externally reachable URLs — counterparties
-  call those from outside the cluster, so in-cluster service names will not do.
-- **The management API key reaches the browser.** It is a `NEXT_PUBLIC_*` variable,
-  so Next.js inlines it into the JavaScript the UI serves. Anyone who can load the
-  UI holds full control of the connector. Put authentication in front of the
-  ingress, or keep the UI internal.
-- **One Postgres instance per connector**, on a `ReadWriteOnce` volume, with no
-  backups. Fine for staging; use a managed database or add backups otherwise.
-- **No NetworkPolicies, no PodSecurityContext**, and the DSP endpoints are open to
-  anything that can route to them in-cluster.
-
----
 
 ## Licence
 
